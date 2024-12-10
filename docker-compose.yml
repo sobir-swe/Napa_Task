@@ -1,0 +1,72 @@
+services:
+    napa-web:
+        container_name: napa-web
+        image: nginx:alpine
+        ports:
+            - "8085:80"
+        volumes:
+            - ./:/var/www
+            - ./nginx.conf:/etc/nginx/conf.d/default.conf
+        depends_on:
+            - napa-app
+        networks:
+            - napa-network
+
+    napa-app:
+        container_name: napa-app
+        build:
+            context: .
+            dockerfile: Dockerfile
+        restart: unless-stopped
+        depends_on:
+            - postgres
+        volumes:
+            - ./:/var/www
+        networks:
+            - napa-network
+
+    postgres:
+        image: postgres
+        container_name: napa-postgres
+        restart: always
+        expose:
+            - 5432
+        ports:
+            - "23456:5432"
+        environment:
+            POSTGRES_DB: ${DB_DATABASE}
+            POSTGRES_USER: ${DB_USERNAME}
+            POSTGRES_PASSWORD: ${DB_PASSWORD}
+        volumes:
+            - napa_postgres_data:/var/lib/postgresql/data
+        networks:
+            - napa-network
+
+    napa-pgadmin:
+        image: dpage/pgadmin4
+        container_name: napa-pgadmin
+        restart: unless-stopped
+        environment:
+            PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+            PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+        ports:
+            - "8084:80"
+        networks:
+            - napa-network
+
+    napa-node:
+        image: node:20
+        container_name: napa-node
+        working_dir: /var/www
+        volumes:
+            - ./:/var/www
+        networks:
+            - napa-network
+        command: bash -c "npm install && npm run build && npm run dev"
+
+networks:
+    napa-network:
+        driver: bridge
+
+volumes:
+    napa_postgres_data:
